@@ -1,6 +1,7 @@
 from config import *
 import pymysql
 
+from json_parser import collect_trainings_data
 
 class MysqlClient:
     def __init__(self, host, port, user, password, db_name):
@@ -23,7 +24,11 @@ class MysqlClient:
             raise
 
     def create_db(self, db):
-        """Creates database if it doesn't exist."""
+        """
+        Creates database if it doesn't exist.
+        :rtype: None
+        """
+
         try:
             create_db_query = f"CREATE DATABASE IF NOT EXISTS {db}"
             self.cursor.execute(create_db_query)
@@ -33,12 +38,17 @@ class MysqlClient:
             raise
 
     def create_table(self):
-        """Creates 'trainings' table if it doesn't exist."""
+        """
+        Creates 'trainings' table if it doesn't exist.
+        :rtype: None
+        """
+
         try:
             create_table_query = """CREATE TABLE IF NOT EXISTS trainings_data (
                                         id INT AUTO_INCREMENT PRIMARY KEY,
                                         date DATE,
                                         week_num INT,
+                                        weekday INT,
                                         distance FLOAT,
                                         avg_hr INT,
                                         start_time TIME,
@@ -52,13 +62,18 @@ class MysqlClient:
             print(exception_message)
             raise
 
-    def insert(self, date, week_num, distance, avg_hr, start_time, stop_time, kilocalories):
-        """Inserts summary data of training into table 'trainings_data'."""
+    def insert(self, data):
+        """
+        Inserts summary data of training into table 'trainings_data'.
+        :param data: list of date, week number, weekday number, start and stop times,
+                     distance, average heartrate, kilocalories.
+        :rtype: None
+        """
+
         try:
-            insert_data_query = f"""INSERT INTO trainings_data (date, week_num, distance, avg_hr, start_time, stop_time, kilocalories)
-                                   VALUES ("{date}", {week_num}, {distance}, {avg_hr},
-                                           "{start_time}", "{stop_time}", {kilocalories})                     
-                                """
+            insert_data_query = """INSERT INTO trainings_data (date, week_num, weekday, distance, avg_hr,
+                                   start_time, stop_time, kilocalories) VALUES {}""".format(", ".join(data))
+
             self.cursor.execute(insert_data_query)
             self.connection.commit()
 
@@ -67,7 +82,11 @@ class MysqlClient:
             raise
 
     def delete(self, id_):
-        """Deletes row from 'trainings_data' table by its id"""
+        """
+        Deletes row from 'trainings_data' table by its id
+        :rtype: None
+        """
+
         try:
             delete_data_query = f"""DELETE FROM trainings_data WHERE id={id_}
                                 """
@@ -77,3 +96,7 @@ class MysqlClient:
         except Exception as exception_message:
             print(exception_message)
             raise
+
+data1 = collect_trainings_data()
+db = MysqlClient(host, port, user,password, db_name)
+db.insert(data1)
