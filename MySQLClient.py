@@ -1,7 +1,6 @@
 from config import *
 import pymysql
 
-from json_parser import collect_trainings_data
 
 class MysqlClient:
     def __init__(self, host, port, user, password, db_name):
@@ -96,7 +95,3 @@ class MysqlClient:
         except Exception as exception_message:
             print(exception_message)
             raise
-
-data1 = collect_trainings_data()
-db = MysqlClient(host, port, user,password, db_name)
-db.insert(data1)

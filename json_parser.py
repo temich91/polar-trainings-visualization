@@ -20,7 +20,7 @@ def get_training_summary_from_json(json_file_name):
     :param json_file_name: str
     :return: date (YYYY-MM-DD), week number, weekday, distance (meters), average heartrate (bpm),
              start and stop times (hh:mm:ss), kilocalories.
-    :rtype: tuple
+    :rtype: str
     """
 
     with open(f"data/{json_file_name}", "r") as file:
@@ -39,7 +39,7 @@ def get_training_summary_from_json(json_file_name):
             avg_hr = data["averageHeartRate"]
             kilocalories = data["kiloCalories"]
 
-        summary = tuple(map(str, [date, week_number, weekday, distance, avg_hr, start_time, stop_time, kilocalories]))
+        summary = f"({date}, {week_number}, {weekday}, {distance}, {avg_hr}, {start_time}, {stop_time}, {kilocalories})"
 
     return summary
 
@@ -50,8 +50,4 @@ def collect_trainings_data():
     for training_json in os.listdir("data"):
         i += 1
         data.append(get_training_summary_from_json(training_json))
-        if i == 1:
-            break
-    print(list(map(str, data)))
-    return list(map(str, data))
-collect_trainings_data()
+    return data
