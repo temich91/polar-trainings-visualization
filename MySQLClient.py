@@ -61,7 +61,7 @@ class MysqlClient:
             print(exception_message)
             raise
 
-    def insert(self, data):
+    def fill_table(self, data):
         """
         Inserts summary data of training into table 'trainings_data'.
         :param data: list of date, week number, weekday number, start and stop times,
@@ -95,3 +95,9 @@ class MysqlClient:
         except Exception as exception_message:
             print(exception_message)
             raise
+
+    def select(self, *args):
+        date_selection_query = f"SELECT {','.join(args)} FROM trainings_data"
+        self.cursor.execute(date_selection_query)
+        result = self.cursor.fetchall()
+        return result
