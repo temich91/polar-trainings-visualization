@@ -1,4 +1,3 @@
-from config import *
 import pymysql
 
 
@@ -10,7 +9,6 @@ class MysqlClient:
                 port=port,
                 user=user,
                 password=password,
-                database=db_name,
                 cursorclass=pymysql.cursors.DictCursor
             )
 
@@ -31,6 +29,7 @@ class MysqlClient:
         try:
             create_db_query = f"CREATE DATABASE IF NOT EXISTS {db}"
             self.cursor.execute(create_db_query)
+            self.connection.select_db(db)
 
         except Exception as exception_message:
             print(exception_message)
@@ -87,8 +86,7 @@ class MysqlClient:
         """
 
         try:
-            delete_data_query = f"""DELETE FROM trainings_data WHERE id={id_}
-                                """
+            delete_data_query = f"""DELETE FROM trainings_data WHERE id={id_}"""
             self.cursor.execute(delete_data_query)
             self.connection.commit()
 
@@ -96,8 +94,14 @@ class MysqlClient:
             print(exception_message)
             raise
 
-    def select(self, *args):
-        date_selection_query = f"SELECT {','.join(args)} FROM trainings_data"
+    def select(self, *args, is_distinct=False, group_args=None):
+        if is_distinct:
+            if group_args:
+                date_selection_query = f"SELECT DISTINCT {','.join(args)} FROM trainings_data GROUP BY {','.join(group_args)}"
+            else:
+                date_selection_query = f"SELECT DISTINCT {','.join(args)} FROM trainings_data"
+        else:
+            date_selection_query = f"SELECT {','.join(args)} FROM trainings_data"
         self.cursor.execute(date_selection_query)
         result = self.cursor.fetchall()
         return result

@@ -23,8 +23,17 @@ def get_training_summary_from_json(json_file_name):
     :rtype: str
     """
 
-    with open(f"data/{json_file_name}", "r") as file:
+    with open(f"data/{json_file_name}", "r", encoding="UTF-8") as file:
         data = json.load(file)
+        if "name" not in data:
+            avg_hr = 0
+            kilocalories = 0
+        elif data["name"] == "Бег":
+            avg_hr = data["averageHeartRate"]
+            kilocalories = data["kiloCalories"]
+        else:
+            print(data["name"]) # Р‘РµРі
+            return False
         start_datetime = data["startTime"]
         date, start_time = start_datetime.split("T")
         distance = int(data["distance"])
@@ -32,12 +41,6 @@ def get_training_summary_from_json(json_file_name):
         date = f"'{date}'"
         start_time = f"'{start_time[:8]}'"
         stop_time = "'{}'".format(data["stopTime"].split("T")[1][:8])
-        if "averageHeartRate" not in data:
-            avg_hr = 0
-            kilocalories = 0
-        else:
-            avg_hr = data["averageHeartRate"]
-            kilocalories = data["kiloCalories"]
 
         summary = f"({date}, {week_number}, {weekday}, {distance}, {avg_hr}, {start_time}, {stop_time}, {kilocalories})"
 
@@ -46,8 +49,12 @@ def get_training_summary_from_json(json_file_name):
 
 def collect_trainings_data():
     data = []
-    i = 0
     for training_json in os.listdir("data"):
-        i += 1
-        data.append(get_training_summary_from_json(training_json))
+        summary = get_training_summary_from_json(training_json)
+        if summary:
+            data.append(summary)
+        else:
+            print(summary)
+            print(training_json)
+            os.remove(f"data/{training_json}")
     return data
