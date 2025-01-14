@@ -34,7 +34,7 @@ class Visualizer:
         self.y_options = ["distance (km)", "quantity"]
         self.year = get_year()
 
-    def get_data_to_plot(self, data: PlottingData, plot_attr):
+    def get_plot_data(self, data: PlottingData, plot_attr):
         if data.name not in self.plotting_params:
             print(f"No such option: {data.name}. You can try `month`, `week`, `weekday` or `start time`.")
             return
@@ -44,7 +44,7 @@ class Visualizer:
             data_pairs = self.mysql_client.select(*data.query_params)
         elif plot_attr == "quantity":
             data_pairs = self.mysql_client.select(*data.distinct_query_params,
-                                                            is_distinct=True, group_args=data.group_args)
+                                                  is_distinct=True, group_args=data.group_args)
 
         data_dict = {i + 1: 0 for i in range(data.x_ticks_count)}
         for pair in data_pairs:
@@ -61,27 +61,25 @@ class Visualizer:
                     number = (int(str(pair["min(start_time)"]).split(":")[0]) + 1) % 24
 
             if plot_attr == "distance":
-                # distance = int(pair["distance"]) # km
-                distance = pair["distance"] / 1000 # m
+                distance = pair["distance"] / 1000
                 data_dict[number] += distance
             elif plot_attr == "quantity":
                 data_dict[number] += 1
 
         return data_dict
 
-    def plot(self, data:PlottingData):
-        distance_data = self.get_data_to_plot(data, "distance")
-        quantity_data = self.get_data_to_plot(data, "quantity")
+    def plot(self, data: PlottingData):
+        distance_data = self.get_plot_data(data, "distance")
+        quantity_data = self.get_plot_data(data, "quantity").values()
 
-        sns.barplot(distance_data, color="#C9716F")
+        ax = sns.barplot(distance_data, color="#C9716F")
+        ax.bar_label(ax.containers[0], labels=quantity_data, size=10)
         locs, labels = plt.xticks()
         plt.title(f"Distance by {data.name} in {self.year}")
         plt.xticks(locs, data.labels, fontsize=10)
         plt.xlabel(data.name)
         plt.ylabel("distance, km")
         plt.show()
-
-
 
     def plot_distance_by_month(self):
         month_abbreviations = ["ЯНВ", "ФЕВ", "МАРТ", "АПР", "МАЙ", "ИЮНЬ",
@@ -92,22 +90,22 @@ class Visualizer:
     def plot_distance_by_week(self):
         max_week_number = get_max_week_number()
         week_number_range = list(range(1, max_week_number + 1))
-        week_data_to_plot = PlottingData("week", ["week_num", "distance"], max_week_number, week_number_range)
+        week_data_to_plot = PlottingData("week", ["week_num", "distance"], ["date", "week_num"], max_week_number, week_number_range)
         self.plot(week_data_to_plot)
 
     def plot_distance_by_weekday(self):
         weekday_abbreviations = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"]
-        weekday_data_to_plot = PlottingData("weekday", ["weekday", "distance"], 7, weekday_abbreviations)
-        self.plot_distance(weekday_data_to_plot)
+        weekday_data_to_plot = PlottingData("weekday", ["weekday", "distance"], ["date", "weekday"], 7, weekday_abbreviations)
+        self.plot(weekday_data_to_plot)
 
     def plot_distance_by_start_times(self):
         hours_range = list(range(24))
-        start_time_data_to_plot = PlottingData("start time", ["start_time", "distance"], 24, hours_range)
-        self.plot_distance(start_time_data_to_plot)
+        start_time_data_to_plot = PlottingData("start time", ["start_time", "distance"], ["date", "min(start_time)"], 24, hours_range, group_args=["date"])
+        self.plot(start_time_data_to_plot)
 
     def plot_year_summary(self):
         pass
 
 
 v = Visualizer()
-v.plot_distance_by_month()
+v.plot_distance_by_start_times()

@@ -54,7 +54,5 @@ def collect_trainings_data():
         if summary:
             data.append(summary)
         else:
-            print(summary)
-            print(training_json)
             os.remove(f"data/{training_json}")
     return data
