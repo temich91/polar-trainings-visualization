@@ -8,17 +8,33 @@ import os
 
 
 def get_year():
+    """
+    Get year number of trainings records
+    :return: int year number
+    """
     some_filename = os.listdir("data")[0]
     return int(some_filename.split("-")[2])
 
 
 def get_max_week_number():
+    """
+    Get maximum number of week in specific year
+    :return: int
+    """
     year = get_year()
     return datetime.date(year, 12, 28).isocalendar().week
 
 
 @dataclass
 class PlottingData:
+    """
+    Dataclass for plot configuration
+    name: period (hour, weekday, week, month)
+    query_params: columns to select in database
+    x_ticks_count: number of ticks at x-axis
+    labels: labels for x-axis ticks
+    group_args: columns to group by when select unique values
+    """
     name: str
     query_params: list[str]
     distinct_query_params: list[str]
@@ -28,6 +44,9 @@ class PlottingData:
 
 
 class Visualizer:
+    """
+    Configure and plot summary about running trainings by different periods
+    """
     def __init__(self):
         self.mysql_client = MysqlClient(host, port, user, password, db_name)
         self.plotting_params = ["month", "week", "weekday", "start time"]
@@ -35,6 +54,12 @@ class Visualizer:
         self.year = get_year()
 
     def get_plot_data(self, data: PlottingData, plot_attr):
+        """
+        Prepares trainings data from database
+        :param data: PlottingData parameters of period for plot
+        :param plot_attr: `distance` or `quantity`, training attribute to count
+        :return: dict of plot axes data
+        """
         if data.name not in self.plotting_params:
             print(f"No such option: {data.name}. You can try `month`, `week`, `weekday` or `start time`.")
             return
@@ -69,6 +94,11 @@ class Visualizer:
         return data_dict
 
     def plot(self, data: PlottingData):
+        """
+        Draw barchart of trainings distance and count for specific periods (hours, weekday, weeks, months)
+        :param data: dict of plot axes data
+        :return: None
+        """
         distance_data = self.get_plot_data(data, "distance")
         quantity_data = self.get_plot_data(data, "quantity").values()
 
@@ -82,23 +112,39 @@ class Visualizer:
         plt.show()
 
     def plot_distance_by_month(self):
+        """
+        Configure query parameters and plot barchart for monthly trainings
+        :return: None
+        """
         month_abbreviations = ["ЯНВ", "ФЕВ", "МАРТ", "АПР", "МАЙ", "ИЮНЬ",
                                "ИЮЛЬ", "АВГ", "СЕН", "ОКТ", "НОЯ", "ДЕК"]
         month_data_to_plot = PlottingData("month", ["date", "distance"], ["date"], 12, month_abbreviations)
         self.plot(month_data_to_plot)
 
     def plot_distance_by_week(self):
+        """
+        Configure query parameters and plot barchart for weekly trainings
+        :return: None
+        """
         max_week_number = get_max_week_number()
         week_number_range = list(range(1, max_week_number + 1))
         week_data_to_plot = PlottingData("week", ["week_num", "distance"], ["date", "week_num"], max_week_number, week_number_range)
         self.plot(week_data_to_plot)
 
     def plot_distance_by_weekday(self):
+        """
+        Configure query parameters and plot barchart for trainings by day of the week
+        :return: None
+        """
         weekday_abbreviations = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"]
         weekday_data_to_plot = PlottingData("weekday", ["weekday", "distance"], ["date", "weekday"], 7, weekday_abbreviations)
         self.plot(weekday_data_to_plot)
 
     def plot_distance_by_start_times(self):
+        """
+        Configure query parameters and plot barchart for trainings by every hour
+        :return: None
+        """
         hours_range = list(range(24))
         start_time_data_to_plot = PlottingData("start time", ["start_time", "distance"], ["date", "min(start_time)"], 24, hours_range, group_args=["date"])
         self.plot(start_time_data_to_plot)
@@ -108,4 +154,3 @@ class Visualizer:
 
 
 v = Visualizer()
-v.plot_distance_by_start_times()

@@ -51,8 +51,7 @@ class MysqlClient:
                                         avg_hr INT,
                                         start_time TIME,
                                         stop_time TIME,
-                                        kilocalories INT                                        
-            )"""
+                                        kilocalories INT)"""
             self.cursor.execute(create_table_query)
             self.connection.commit()
 
@@ -69,8 +68,15 @@ class MysqlClient:
         """
 
         try:
-            insert_data_query = """INSERT INTO trainings_data (date, week_num, weekday, distance, avg_hr,
-                                   start_time, stop_time, kilocalories) VALUES {}""".format(", ".join(data))
+            insert_data_query = """INSERT INTO trainings_data (date,
+                                                               week_num,
+                                                               weekday,
+                                                               distance,
+                                                               avg_hr,
+                                                               start_time,
+                                                               stop_time,
+                                                               kilocalories
+                                                               ) VALUES {}""".format(", ".join(data))
 
             self.cursor.execute(insert_data_query)
             self.connection.commit()
@@ -95,9 +101,17 @@ class MysqlClient:
             raise
 
     def select(self, *args, is_distinct=False, group_args=None):
+        """
+        Executes selection query
+        :param args: columns' name to select
+        :param is_distinct: if True selects unique values
+        :param group_args: if is_distinct, columns to group by
+        :return:
+        """
         if is_distinct:
             if group_args:
-                date_selection_query = f"SELECT DISTINCT {','.join(args)} FROM trainings_data GROUP BY {','.join(group_args)}"
+                date_selection_query = f"SELECT DISTINCT {','.join(args)} FROM trainings_data" \
+                                       f"GROUP BY {','.join(group_args)}"
             else:
                 date_selection_query = f"SELECT DISTINCT {','.join(args)} FROM trainings_data"
         else:

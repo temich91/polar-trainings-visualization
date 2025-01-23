@@ -5,6 +5,7 @@ import datetime
 
 def get_week_data(date):
     """
+    parse number of week and number of weekday from iso format date
     :param date: str
     :return: pair of week number and number of weekday
     :rtype: list
@@ -17,6 +18,7 @@ def get_week_data(date):
 
 def get_training_summary_from_json(json_file_name):
     """
+    parse training parameters from json
     :param json_file_name: str
     :return: date (YYYY-MM-DD), week number, weekday, distance (meters), average heartrate (bpm),
              start and stop times (hh:mm:ss), kilocalories.
@@ -48,6 +50,10 @@ def get_training_summary_from_json(json_file_name):
 
 
 def collect_trainings_data():
+    """
+    select training data if type is running else delete json
+    :return: list
+    """
     data = []
     for training_json in os.listdir("data"):
         summary = get_training_summary_from_json(training_json)
