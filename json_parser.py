@@ -16,7 +16,7 @@ def get_week_data(date):
     return [isoformat_date.week, isoformat_date.weekday]
 
 
-def get_training_summary_from_json(json_file_name):
+def get_training_summary_from_json(json_file_name, year):
     """
     parse training parameters from json
     :param json_file_name: str
@@ -27,14 +27,15 @@ def get_training_summary_from_json(json_file_name):
 
     with open(f"data/{json_file_name}", "r", encoding="UTF-8") as file:
         data = json.load(file)
-        if "name" not in data:
+        if data["startTime"][:4] != year:
+            return False
+        if "averageHeartRate" not in data:
             avg_hr = 0
             kilocalories = 0
         elif data["name"] == "Бег":
             avg_hr = data["averageHeartRate"]
             kilocalories = data["kiloCalories"]
         else:
-            print(data["name"]) # Р‘РµРі
             return False
         start_datetime = data["startTime"]
         date, start_time = start_datetime.split("T")
@@ -49,16 +50,14 @@ def get_training_summary_from_json(json_file_name):
     return summary
 
 
-def collect_trainings_data():
+def collect_trainings_data(year):
     """
     select training data if type is running else delete json
     :return: list
     """
     data = []
     for training_json in os.listdir("data"):
-        summary = get_training_summary_from_json(training_json)
+        summary = get_training_summary_from_json(training_json, year)
         if summary:
             data.append(summary)
-        else:
-            os.remove(f"data/{training_json}")
     return data

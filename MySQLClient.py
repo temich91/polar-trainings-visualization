@@ -2,7 +2,7 @@ import pymysql
 
 
 class MysqlClient:
-    def __init__(self, host, port, user, password, db_name):
+    def __init__(self, host, port, user, password, db_name, year, data):
         try:
             self.connection = pymysql.connect(
                 host=host,
@@ -12,9 +12,24 @@ class MysqlClient:
                 cursorclass=pymysql.cursors.DictCursor
             )
 
+            self.year = year
             self.cursor = self.connection.cursor()
             self.create_db(db_name)
-            self.create_table()
+            self.create_table(data)
+
+        except Exception as exception_message:
+            print(exception_message)
+            raise
+
+    def check_table(self, table):
+        """Checks if db exists
+        :rtype bool
+        """
+
+        try:
+            check_table_query = f"CHECK TABLE {table}"
+            self.cursor.execute(check_table_query)
+            return self.cursor.fetchall()[0]["Msg_text"] == "OK"
 
         except Exception as exception_message:
             print(exception_message)
@@ -35,14 +50,16 @@ class MysqlClient:
             print(exception_message)
             raise
 
-    def create_table(self):
+    def create_table(self, data):
         """
         Creates 'trainings' table if it doesn't exist.
         :rtype: None
         """
 
         try:
-            create_table_query = """CREATE TABLE IF NOT EXISTS trainings_data (
+            if self.check_table(f"trainings_data_{self.year}"):
+                return
+            create_table_query = f"""CREATE TABLE IF NOT EXISTS trainings_data_{self.year} (
                                         id INT AUTO_INCREMENT PRIMARY KEY,
                                         date DATE,
                                         week_num INT,
@@ -54,6 +71,7 @@ class MysqlClient:
                                         kilocalories INT)"""
             self.cursor.execute(create_table_query)
             self.connection.commit()
+            self.fill_table(data)
 
         except Exception as exception_message:
             print(exception_message)
@@ -68,7 +86,7 @@ class MysqlClient:
         """
 
         try:
-            insert_data_query = """INSERT INTO trainings_data (date,
+            insert_data_query = """INSERT INTO trainings_data_{} (date,
                                                                week_num,
                                                                weekday,
                                                                distance,
@@ -76,7 +94,7 @@ class MysqlClient:
                                                                start_time,
                                                                stop_time,
                                                                kilocalories
-                                                               ) VALUES {}""".format(", ".join(data))
+                                                               ) VALUES {}""".format(self.year, ", ".join(data))
 
             self.cursor.execute(insert_data_query)
             self.connection.commit()
@@ -92,7 +110,7 @@ class MysqlClient:
         """
 
         try:
-            delete_data_query = f"""DELETE FROM trainings_data WHERE id={id_}"""
+            delete_data_query = f"""DELETE FROM trainings_data_{self.year} WHERE id={id_}"""
             self.cursor.execute(delete_data_query)
             self.connection.commit()
 
@@ -110,12 +128,13 @@ class MysqlClient:
         """
         if is_distinct:
             if group_args:
-                date_selection_query = f"SELECT DISTINCT {','.join(args)} FROM trainings_data" \
+                date_selection_query = f"SELECT DISTINCT {','.join(args)} FROM trainings_data_{self.year} " \
                                        f"GROUP BY {','.join(group_args)}"
             else:
-                date_selection_query = f"SELECT DISTINCT {','.join(args)} FROM trainings_data"
+                date_selection_query = f"SELECT DISTINCT {','.join(args)} FROM trainings_data_{self.year}"
         else:
-            date_selection_query = f"SELECT {','.join(args)} FROM trainings_data"
+            date_selection_query = f"SELECT {','.join(args)} FROM trainings_data_{self.year}"
+
         self.cursor.execute(date_selection_query)
         result = self.cursor.fetchall()
         return result
