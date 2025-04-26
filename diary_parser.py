@@ -1,4 +1,6 @@
 from selenium import webdriver
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
@@ -6,27 +8,39 @@ from bs4 import BeautifulSoup
 import requests
 import polar_config
 import time
-import sys
 import os
+
+"""
+Based on https://github.com/asib/polar-flow-export
+"""
 
 FLOW_URL = "https://flow.polar.com"
 
 def login(driver, username, password):
+    wait = WebDriverWait(driver, 10)
+
     driver.get("%s/login" % FLOW_URL)
-    time.sleep(1.5)
     print("Cookies...")
-    driver.find_element(By.ID, "CybotCookiebotDialogBodyButtonDecline").click()
-    driver.find_element(By.ID, "login").click()
-    time.sleep(5)
+    wait.until(ec.visibility_of_element_located((By.ID, "CybotCookiebotDialogBodyButtonDecline"))).click()
+    wait.until(ec.visibility_of_element_located((By.ID, "login"))).click()
+
     print("Signing in...")
     driver.find_element(By.NAME, "username").send_keys(username)
     driver.find_element(By.NAME, "password").send_keys(password)
     driver.switch_to.active_element.send_keys(Keys.ENTER)
-    print("Logged in")
 
-def get_exercise_ids(driver, year, month):
+    print("Logged in")
     driver.get("https://flow.polar.com/diary/training-list")
-    time.sleep(3.5)
+
+    # start date
+    wait.until(ec.visibility_of_element_located((By.ID, "historyStart"))).click()
+    wait.until(ec.visibility_of_element_located((By.CLASS_NAME, "picker-switch__link.picker-switch-days"))).click()
+    wait.until(ec.visibility_of_element_located((By.CLASS_NAME, "picker-switch__link.picker-switch-months"))).click()
+    wait.until(ec.visibility_of_all_elements_located((By.CLASS_NAME, "year")))[4].click()
+    wait.until(ec.visibility_of_element_located((By.CLASS_NAME, "month"))).click()
+    wait.until(ec.visibility_of_element_located((By.CLASS_NAME, "day.weekend.new"))).click()
+
+    time.sleep(2)
     src = driver.page_source
     with open("test.html", "w", encoding="UTF-8") as file:
         file.write(src)
@@ -35,9 +49,9 @@ def get_exercise_ids(driver, year, month):
     ids = []
     for div in soup.find_all("div", {"role": "listitem"}):
         div_class = div.attrs["class"]
-        if "row" in div_class:
+        if ("row" in div_class) and (div.find("div", {"class": "data-column exercise-link"}).text == "Бег"):
             ids.append(div_class[-1][3:])
-
+    print(ids)
     return ids
 
 def export_exercise(driver, exercise_id, output_dir):
@@ -62,9 +76,7 @@ def export_exercise(driver, exercise_id, output_dir):
     print("Writing file %s..." % filename)
 
 def run(driver, username, password, month, year, output_dir):
-    login(driver, username, password)
-    time.sleep(3)
-    exercise_ids = get_exercise_ids(driver, year, month)
+    exercise_ids =  login(driver, username, password)
     for ex_id in exercise_ids:
         export_exercise(driver, ex_id, output_dir)
 
@@ -73,7 +85,7 @@ if __name__ == "__main__":
     password = polar_config.password
     month = 4
     year = 2025
-    output_dir = "output"
+    output_dir = "csv_output"
 
     options = Options()
     # options.add_argument("--headless=new")
