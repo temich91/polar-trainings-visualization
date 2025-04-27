@@ -1,4 +1,5 @@
-from json_parser import collect_trainings_data
+# from json_parser import collect_trainings_data
+from csv_parser import get_summary_from_csv
 from MySQLClient import MysqlClient
 from config import *
 from visualizer import Visualizer
@@ -33,7 +34,9 @@ def main(year, data):
 
 
 if __name__ == "__main__":
-    year = input("Number of year to plot summary:")
-    data = collect_trainings_data(year)
+    # year = input("Number of year to plot summary:")
+    year = 2024
+    file = "csv_output/8079344501.csv"
+    data = get_summary_from_csv(file)
     client = MysqlClient(host, port, user, password, db_name, year, data)
-    main(year, data)
+    # main(year, data)

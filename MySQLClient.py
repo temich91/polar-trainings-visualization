@@ -57,18 +57,15 @@ class MysqlClient:
         """
 
         try:
-            if self.check_table(f"trainings_data_{self.year}"):
+            if self.check_table(f"summary_data"):
                 return
-            create_table_query = f"""CREATE TABLE IF NOT EXISTS trainings_data_{self.year} (
+            create_table_query = f"""CREATE TABLE IF NOT EXISTS summary_data (
                                         id INT AUTO_INCREMENT PRIMARY KEY,
                                         date DATE,
-                                        week_num INT,
-                                        weekday INT,
+                                        duration INT,
                                         distance FLOAT,
                                         avg_hr INT,
-                                        start_time TIME,
-                                        stop_time TIME,
-                                        kilocalories INT)"""
+                                        avg_pace VARCHAR(5))"""
             self.cursor.execute(create_table_query)
             self.connection.commit()
             self.fill_table(data)
@@ -86,15 +83,12 @@ class MysqlClient:
         """
 
         try:
-            insert_data_query = """INSERT INTO trainings_data_{} (date,
-                                                               week_num,
-                                                               weekday,
-                                                               distance,
-                                                               avg_hr,
-                                                               start_time,
-                                                               stop_time,
-                                                               kilocalories
-                                                               ) VALUES {}""".format(self.year, ", ".join(data))
+            insert_data_query = """INSERT INTO summary_data_{} (date,
+                                                                duration,
+                                                                distance,
+                                                                avg_hr,
+                                                                avg_pace
+                                                               ) VALUES {}""".format(", ".join(data))
 
             self.cursor.execute(insert_data_query)
             self.connection.commit()
