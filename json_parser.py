@@ -25,7 +25,7 @@ def get_training_summary_from_json(json_file_name, year):
     :rtype: str
     """
 
-    with open(f"data/{json_file_name}", "r", encoding="UTF-8") as file:
+    with open(f"json/{json_file_name}", "r", encoding="UTF-8") as file:
         data = json.load(file)
         if data["startTime"][:4] != year:
             return False
@@ -56,7 +56,7 @@ def collect_trainings_data(year):
     :return: list
     """
     data = []
-    for training_json in os.listdir("data"):
+    for training_json in os.listdir("json"):
         summary = get_training_summary_from_json(training_json, year)
         if summary:
             data.append(summary)
