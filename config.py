@@ -1,5 +1,0 @@
-host = "localhost"
-port = "port"
-user = "user"
-password = "password"
-db_name = "trainings"
