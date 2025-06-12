@@ -11,9 +11,13 @@ import polar_config
 import time
 import os
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
+
+from test import split_period
 
 """
 TODO:
+    - docker with webdriver
     - Other languages localization (file with words parser looks for on pages)
     - Constants in separate file
     - Decent check of cookies file
@@ -24,11 +28,12 @@ TODO:
 FLOW_URL = "https://flow.polar.com"
 ELEMENT_VISIBILITY_TIMEOUT = 10
 COOKIE_DECLINE_BTN_CLASS = "CybotCookiebotDialogBodyButtonDecline"
-START_DATE_CALENDAR_ID = "historyStart"
-END_DATE_CALENDAR_ID = "historyEnd"
 MONTHS_SWITCHER_CLASS = "picker-switch__link.picker-switch-days"
 YEARS_SWITCHER_CLASS = "picker-switch__link.picker-switch-months"
 SWITCHER_LEFT_ARROW_CLASS = "icon.icon-arrow-left.picker-previous-button"
+SWITCHER_RIGHT_ARROW_CLASS = "icon.icon-arrow-right.picker-next-button"
+KEEP_SIGNED_IN_ID = "checkbox_keep_me_signed_in"
+COOKIES_DIALOG_ID = "CybotCookiebotDialogBodyUnderlay"
 MONTHS = {1: "янв.", 2: "фев.", 3: "март", 4: "апр.", 5: "май", 6: "июнь",
           7: "июль", 8: "авг.", 9: "сент.", 10: "окт.", 11: "нояб.", 12: "дек."}
 
@@ -41,17 +46,24 @@ class Scrapper:
         self.driver = webdriver.Edge(service=edge_service)
         self.wait = WebDriverWait(self.driver, timeout=ELEMENT_VISIBILITY_TIMEOUT)
 
+    def wait_visible_element(self, args: tuple, click=True):
+        element = self.wait.until(ec.visibility_of_element_located(args))
+        if click:
+            element.click()
+        return element
 
     def login(self, username, password):
-        if "cookies.json" not in os.listdir("."): # TODO: add decent check of cookies file
+        # if not self.check_cookies(): # TODO: add decent check of cookies file
+        if "cookies.json" not in os.listdir("."):
             self.driver.get("%s/login" % FLOW_URL)
             print("Cookies...") # TODO: send this message to authentication window
-            self.wait.until(ec.visibility_of_element_located((By.ID, COOKIE_DECLINE_BTN_CLASS))).click()
-            self.wait.until(ec.visibility_of_element_located((By.ID, "login"))).click()
+            self.wait_visible_element((By.ID, COOKIE_DECLINE_BTN_CLASS))
+            self.wait_visible_element((By.ID, "login"))
 
             print("Signing in...")
             self.wait.until(ec.visibility_of_element_located((By.NAME, "username"))).send_keys(username)
             self.wait.until(ec.visibility_of_element_located((By.NAME, "password"))).send_keys(password)
+            self.wait_visible_element((By.ID, KEEP_SIGNED_IN_ID))
             self.driver.switch_to.active_element.send_keys(Keys.ENTER)
 
             if self.check_authentication():
@@ -62,8 +74,20 @@ class Scrapper:
             with open("cookies.json", "w") as cookies_file:
                 json.dump(self.driver.get_cookies(), cookies_file)
 
-        self.driver.get("https://flow.polar.com/diary/training-list")
+        self.driver.get(FLOW_URL)
         self.load_cookies()
+
+    def check_cookies(self):
+        if "cookies.json" not in os.listdir("."):
+            return False
+        self.driver.get(FLOW_URL)
+        self.load_cookies()
+        self.driver.get(FLOW_URL + "/diary/training-list")
+        time.sleep(2.5)
+        if "login" in self.driver.current_url:
+            os.remove("./cookies.json")
+            return False
+        return True
 
     def load_cookies(self):
         for cookie in json.load(open("cookies.json", "r")):
@@ -75,39 +99,61 @@ class Scrapper:
     def get_all_trainings(self):
         pass
 
-    def get_trainings_by_dates(self, start_date: datetime, end_date: datetime):
-        print("Setting the start date of the period")
-        self.driver.get("https://flow.polar.com/diary/training-list")
-        self.wait.until(ec.visibility_of_element_located((By.CLASS_NAME, "trigger"))).click()
-        self.wait.until(ec.visibility_of_element_located((By.XPATH, "//*[contains(text(), 'Бег')]"))).click()
-        self.wait.until(ec.visibility_of_element_located((By.CLASS_NAME, "select-component__value-container.select-component__value-container--has-value.css-1hwfws3"))).click()
-        self.wait.until(ec.visibility_of_element_located((By.XPATH, "//*[contains(text(), 'Все')]"))).click()
+    def select_calendar_date(self, date: datetime, period_boundary: str):
+        if period_boundary == "start":
+            calendar_id = "historyStart"
+        else:  # "end"
+            calendar_id = "historyEnd"
 
-        # start date
-        start_year = start_date.year
-        start_month = start_date.month
-        start_day = start_date.day
-        self.wait.until(ec.visibility_of_element_located((By.ID, START_DATE_CALENDAR_ID))).click()
-        self.wait.until(ec.visibility_of_element_located((By.CLASS_NAME, MONTHS_SWITCHER_CLASS))).click()
+        self.wait_visible_element((By.ID, calendar_id))
+        self.wait.until(lambda driver: len(driver.find_elements(By.CLASS_NAME, MONTHS_SWITCHER_CLASS)) == 1)
+        self.wait_visible_element((By.CLASS_NAME, MONTHS_SWITCHER_CLASS))
 
         # year
-        self.wait.until(ec.visibility_of_element_located((By.XPATH, f"//*[contains(text(), '{datetime.today().year}')]")))
-        while not self.driver.find_elements(By.XPATH, f"//th[@class='picker-switch']/*[contains(text(), '{start_year}')]"):
-            self.driver.find_element(By.CLASS_NAME, SWITCHER_LEFT_ARROW_CLASS).click()
+        year = int(self.wait_visible_element((By.CLASS_NAME, YEARS_SWITCHER_CLASS), False).text)
+        arrow_class = SWITCHER_LEFT_ARROW_CLASS
+        if year < date.year:
+            arrow_class = SWITCHER_RIGHT_ARROW_CLASS
+        while not self.driver.find_elements(By.XPATH,f"//th[@class='picker-switch']/*[contains(text(), '{date.year}')]"):
+            self.driver.find_element(By.CLASS_NAME, arrow_class).click()
 
         # month
-        self.driver.find_element(By.XPATH, f"//*[contains(text(), '{MONTHS[start_month]}')]").click()
+        self.driver.find_element(By.XPATH, f"//*[contains(text(), '{MONTHS[date.month]}')]").click()
 
         # day
-        self.driver.find_element(By.XPATH, f"//*[contains(text(), '{str(start_day).zfill(2)}')]").click()
+        self.driver.find_element(By.XPATH, f"//*[contains(text(), '{str(date.day).zfill(2)}')]").click()
 
-        # self.wait.until(ec.visibility_of_all_elements_located((By.CLASS_NAME, "year")))[4].click()
-        # self.wait.until(ec.visibility_of_element_located((By.CLASS_NAME, "month"))).click()
-        # self.wait.until(ec.visibility_of_element_located((By.CLASS_NAME, "day.weekend.new"))).click()
+    @staticmethod
+    def get_dates_difference(start_date, end_date):
+        diff = relativedelta(start_date, end_date)
+        return diff.years, diff.months, diff.days
 
-        # src = self.driver.page_source
-        # with open("test.html", "w", encoding="UTF-8") as file:
-        #     file.write(src)
+    @staticmethod
+    def split_period(start_date, end_date):
+        intervals = []
+        start = start_date
+        end = start_date + relativedelta(years=3)
+
+        while end < end_date:
+            intervals.append((start, end))
+            start = end + relativedelta(days=1)
+            end += relativedelta(years=3, days=1)
+        intervals.append((start, end_date))
+        return intervals
+
+    def get_trainings_by_dates(self, start_date, end_date):
+        self.driver.get(FLOW_URL + "/diary/training-list")
+        self.wait_visible_element((By.CLASS_NAME, "trigger"))
+        self.wait_visible_element((By.XPATH, "//*[contains(text(), 'Бег')]"))
+        self.wait_visible_element((By.CLASS_NAME, "select-component__value-container.select-component__value-container--has-value.css-1hwfws3"))
+        self.wait_visible_element((By.XPATH, "//*[contains(text(), 'Все')]"))
+
+        intervals = split_period(start_date, end_date)
+        for interval in intervals:
+            print(f"Setting dates of the period {interval[0]} / {interval[1]}")
+            self.select_calendar_date(interval[0], "start")
+            self.select_calendar_date(interval[1], "end")
+            time.sleep(2)
 
         # soup = BeautifulSoup(src, 'lxml')
         # ids = []
@@ -150,6 +196,6 @@ if __name__ == "__main__":
 
     scraper = Scrapper()
     scraper.login(username, password)
-    start = datetime(year=2024, month=6, day=1)
-    end = datetime(year=2024, month=6, day=7)
+    start = datetime(year=2023, month=4, day=7)
+    end = datetime(year=2025, month=1, day=11)
     scraper.get_trainings_by_dates(start, end)
