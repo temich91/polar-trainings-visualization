@@ -141,6 +141,37 @@ class Scrapper:
         intervals.append((start, end_date))
         return intervals
 
+    def get_trainings_ids(self):
+        self.wait_visible_element((By.XPATH, "//*[contains(text(), 'Дата')]"), False)
+        src = self.driver.page_source
+
+        soup = BeautifulSoup(src, 'lxml')
+        ids = []
+        for div in soup.find_all("div", {"role": "listitem"}):
+            div_class = div.attrs["class"]
+            if "row" in div_class:
+                ids.append(div_class[-1][3:])
+        print(len(ids))
+        return ids
+
+    def export_csv(self, output_dir):
+        output_path = f"./{output_dir}"
+        if not os.path.exists(output_path):
+            os.mkdir(output_path)
+
+        trainings_ids = self.get_trainings_ids()
+
+        for id_ in trainings_ids:
+            session = requests.Session()
+            for cookie in self.driver.get_cookies():
+                session.cookies.set(cookie['name'], cookie['value'])
+            csv = session.get("%s/api/export/training/csv/%s" % (FLOW_URL, id_)).text
+            filename = f"{id_}.csv"
+
+            print("Writing file %s..." % filename)
+            with open(os.path.join(output_dir, filename), 'w', encoding="UTF-8") as output:
+                output.write(csv)
+
     def get_trainings_by_dates(self, start_date, end_date):
         self.driver.get(FLOW_URL + "/diary/training-list")
         self.wait_visible_element((By.CLASS_NAME, "trigger"))
@@ -153,42 +184,8 @@ class Scrapper:
             print(f"Setting dates of the period {interval[0]} / {interval[1]}")
             self.select_calendar_date(interval[0], "start")
             self.select_calendar_date(interval[1], "end")
-            time.sleep(2)
+            self.export_csv("test_csv_export")
 
-        # soup = BeautifulSoup(src, 'lxml')
-        # ids = []
-        # for div in soup.find_all("div", {"role": "listitem"}):
-        #     div_class = div.attrs["class"]
-        #     if ("row" in div_class) and (div.find("div", {"class": "data-column exercise-link"}).text == "Бег"):
-        #         ids.append(div_class[-1][3:])
-        # print(ids)
-        # return ids
-
-def export_exercise(driver, exercise_id, output_dir):
-    def _load_cookies(session, cookies):
-        for cookie in cookies:
-            session.cookies.set(cookie['name'], cookie['value'])
-
-    s = requests.Session()
-    _load_cookies(s, driver.get_cookies())
-
-    r = s.get("%s/api/export/training/csv/%s" % (FLOW_URL, exercise_id))
-    csv_data = r.text
-    filename = f"{exercise_id}.csv"
-
-    if not os.path.exists(output_dir):
-        print(f"Creating directory {output_dir}...")
-        os.makedirs(output_dir)
-
-    outfile = open(os.path.join(output_dir, filename), 'w', encoding="UTF-8")
-    outfile.write(csv_data)
-    outfile.close()
-    print("Writing file %s..." % filename)
-
-# def run(driver, username, password, month, year, output_dir):
-#     exercise_ids =  login(driver, username, password)
-#     for ex_id in exercise_ids:
-#         export_exercise(driver, ex_id, output_dir)
 
 if __name__ == "__main__":
     username = polar_config.username
@@ -196,6 +193,6 @@ if __name__ == "__main__":
 
     scraper = Scrapper()
     scraper.login(username, password)
-    start = datetime(year=2023, month=4, day=7)
-    end = datetime(year=2025, month=1, day=11)
+    start = datetime(year=2025, month=4, day=7)
+    end = datetime(year=2025, month=4, day=15)
     scraper.get_trainings_by_dates(start, end)
