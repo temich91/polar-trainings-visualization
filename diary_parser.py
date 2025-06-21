@@ -4,7 +4,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
 from bs4 import BeautifulSoup
 import json
 import requests
@@ -31,6 +31,7 @@ PERIOD_SWITCHER_CLASS = "select-component__value-container.select-component__val
 MONTHS_SWITCHER_CLASS = "picker-switch__link.picker-switch-days"
 YEARS_SWITCHER_CLASS = "picker-switch__link.picker-switch-months"
 SWITCHER_LEFT_ARROW_CLASS = "icon.icon-arrow-left.picker-previous-button"
+PREVIOUS_DATE_ARROW_CLASS = "daterangeselection__previous_range.btn.btn-icon"
 SWITCHER_RIGHT_ARROW_CLASS = "icon.icon-arrow-right.picker-next-button"
 KEEP_SIGNED_IN_ID = "checkbox_keep_me_signed_in"
 COOKIES_DIALOG_ID = "CybotCookiebotDialogBodyUnderlay"
@@ -97,12 +98,6 @@ class Scrapper:
     def check_authentication(self):
         return "bad_credentials" not in self.driver.current_url
 
-    def get_all_trainings(self):
-        first_date = datetime(FIRST_YEAR, 1, 1)
-        last_date = datetime.now()
-        self.split_period(first_date, last_date)
-        # self.get_trainings_by_dates(first_date, last_date)
-
     def select_calendar_date(self, date: datetime, period_boundary: str):
         if period_boundary == "start":
             calendar_id = "historyStart"
@@ -126,25 +121,6 @@ class Scrapper:
 
         # day
         self.driver.find_element(By.XPATH, f"//*[contains(text(), '{str(date.day).zfill(2)}')]").click()
-
-    @staticmethod
-    def get_dates_difference(start_date, end_date):
-        diff = relativedelta(start_date, end_date)
-        return diff.years, diff.months, diff.days
-
-    @staticmethod
-    def split_period(start_date, end_date):
-        intervals = []
-        start = start_date
-        end = start_date + relativedelta(years=3)
-
-        while end < end_date:
-            intervals.append((start, end))
-            start = end + relativedelta(days=1)
-            end += relativedelta(years=3, days=1)
-        intervals.append((start, end_date))
-        print(intervals[::-1])
-        return intervals[::-1]
 
     def get_trainings_ids(self):
         try:
@@ -186,25 +162,27 @@ class Scrapper:
         self.wait_visible_element((By.CLASS_NAME, "trigger"))
         try:
             self.wait_visible_element((By.XPATH, "//*[contains(text(), 'Бег')]"))
-        except TimeoutException:
+        except (TimeoutException, StaleElementReferenceException):
             return False
         self.driver.find_element(By.TAG_NAME, "body").click()
         return True
 
-    def get_trainings_by_dates(self, start_date, end_date):
+    def get_all_trainings(self):
         self.driver.get(FLOW_URL + "/diary/training-list")
         self.wait_visible_element((By.CLASS_NAME, PERIOD_SWITCHER_CLASS))
         self.wait_visible_element((By.XPATH, "//*[contains(text(), 'Все')]"))
 
-        intervals = self.split_period(start_date, end_date)
-        for interval in intervals:
-            print(f"Setting dates of the period {interval[0]} / {interval[1]}")
-            self.select_calendar_date(interval[1], "end")
-            self.select_calendar_date(interval[0], "start")
-            # self.select_calendar_date(interval[1], "end")
+        today = datetime.now()
+        current_year = today.year
+        period_length = current_year - FIRST_YEAR
+
+        left_bound = today - relativedelta(years=3)
+        self.select_calendar_date(left_bound, "start")
+        for i in range(period_length // 3 + 3):
             running_in_list = self.check_running()
             if running_in_list:
-                self.export_csv("test_csv_export-copy")
+                self.export_csv("test_csv_export_copy")
+            self.driver.find_element(By.CLASS_NAME, PREVIOUS_DATE_ARROW_CLASS).click()
 
 
 if __name__ == "__main__":
@@ -213,6 +191,4 @@ if __name__ == "__main__":
 
     scraper = Scrapper()
     scraper.login(username, password)
-    # start = datetime(year=2025, month=4, day=7)
-    # end = datetime(year=2025, month=4, day=15)
     scraper.get_all_trainings()
