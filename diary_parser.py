@@ -4,6 +4,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
+from selenium.common.exceptions import TimeoutException
 from bs4 import BeautifulSoup
 import json
 import requests
@@ -12,8 +13,6 @@ import time
 import os
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-
-from test import split_period
 
 """
 TODO:
@@ -26,14 +25,16 @@ TODO:
 """
 
 FLOW_URL = "https://flow.polar.com"
-ELEMENT_VISIBILITY_TIMEOUT = 10
+ELEMENT_VISIBILITY_TIMEOUT = 3 # seconds
 COOKIE_DECLINE_BTN_CLASS = "CybotCookiebotDialogBodyButtonDecline"
+PERIOD_SWITCHER_CLASS = "select-component__value-container.select-component__value-container--has-value.css-1hwfws3"
 MONTHS_SWITCHER_CLASS = "picker-switch__link.picker-switch-days"
 YEARS_SWITCHER_CLASS = "picker-switch__link.picker-switch-months"
 SWITCHER_LEFT_ARROW_CLASS = "icon.icon-arrow-left.picker-previous-button"
 SWITCHER_RIGHT_ARROW_CLASS = "icon.icon-arrow-right.picker-next-button"
 KEEP_SIGNED_IN_ID = "checkbox_keep_me_signed_in"
 COOKIES_DIALOG_ID = "CybotCookiebotDialogBodyUnderlay"
+FIRST_YEAR = 2008
 MONTHS = {1: "янв.", 2: "фев.", 3: "март", 4: "апр.", 5: "май", 6: "июнь",
           7: "июль", 8: "авг.", 9: "сент.", 10: "окт.", 11: "нояб.", 12: "дек."}
 
@@ -97,7 +98,10 @@ class Scrapper:
         return "bad_credentials" not in self.driver.current_url
 
     def get_all_trainings(self):
-        pass
+        first_date = datetime(FIRST_YEAR, 1, 1)
+        last_date = datetime.now()
+        self.split_period(first_date, last_date)
+        # self.get_trainings_by_dates(first_date, last_date)
 
     def select_calendar_date(self, date: datetime, period_boundary: str):
         if period_boundary == "start":
@@ -139,10 +143,16 @@ class Scrapper:
             start = end + relativedelta(days=1)
             end += relativedelta(years=3, days=1)
         intervals.append((start, end_date))
-        return intervals
+        print(intervals[::-1])
+        return intervals[::-1]
 
     def get_trainings_ids(self):
-        self.wait_visible_element((By.XPATH, "//*[contains(text(), 'Дата')]"), False)
+        try:
+            self.wait_visible_element((By.XPATH, "//*[contains(text(), 'Дата')]"), False)
+        except TimeoutException:
+            self.wait_visible_element((By.XPATH, "//*[contains(text(), 'Нет данных')]"), False)
+            return []
+
         src = self.driver.page_source
 
         soup = BeautifulSoup(src, 'lxml')
@@ -151,7 +161,7 @@ class Scrapper:
             div_class = div.attrs["class"]
             if "row" in div_class:
                 ids.append(div_class[-1][3:])
-        print(len(ids))
+        print("ids len:", len(ids))
         return ids
 
     def export_csv(self, output_dir):
@@ -172,19 +182,29 @@ class Scrapper:
             with open(os.path.join(output_dir, filename), 'w', encoding="UTF-8") as output:
                 output.write(csv)
 
+    def check_running(self):
+        self.wait_visible_element((By.CLASS_NAME, "trigger"))
+        try:
+            self.wait_visible_element((By.XPATH, "//*[contains(text(), 'Бег')]"))
+        except TimeoutException:
+            return False
+        self.driver.find_element(By.TAG_NAME, "body").click()
+        return True
+
     def get_trainings_by_dates(self, start_date, end_date):
         self.driver.get(FLOW_URL + "/diary/training-list")
-        self.wait_visible_element((By.CLASS_NAME, "trigger"))
-        self.wait_visible_element((By.XPATH, "//*[contains(text(), 'Бег')]"))
-        self.wait_visible_element((By.CLASS_NAME, "select-component__value-container.select-component__value-container--has-value.css-1hwfws3"))
+        self.wait_visible_element((By.CLASS_NAME, PERIOD_SWITCHER_CLASS))
         self.wait_visible_element((By.XPATH, "//*[contains(text(), 'Все')]"))
 
-        intervals = split_period(start_date, end_date)
+        intervals = self.split_period(start_date, end_date)
         for interval in intervals:
             print(f"Setting dates of the period {interval[0]} / {interval[1]}")
-            self.select_calendar_date(interval[0], "start")
             self.select_calendar_date(interval[1], "end")
-            self.export_csv("test_csv_export")
+            self.select_calendar_date(interval[0], "start")
+            # self.select_calendar_date(interval[1], "end")
+            running_in_list = self.check_running()
+            if running_in_list:
+                self.export_csv("test_csv_export-copy")
 
 
 if __name__ == "__main__":
@@ -193,6 +213,6 @@ if __name__ == "__main__":
 
     scraper = Scrapper()
     scraper.login(username, password)
-    start = datetime(year=2025, month=4, day=7)
-    end = datetime(year=2025, month=4, day=15)
-    scraper.get_trainings_by_dates(start, end)
+    # start = datetime(year=2025, month=4, day=7)
+    # end = datetime(year=2025, month=4, day=15)
+    scraper.get_all_trainings()
