@@ -22,6 +22,7 @@ TODO:
     - Decent check of cookies file
     - Send progress messages to GUI
     - Load user data from db
+    - docstrings
 """
 
 FLOW_URL = "https://flow.polar.com"
@@ -181,7 +182,7 @@ class Scrapper:
         for i in range(period_length // 3 + 3):
             running_in_list = self.check_running()
             if running_in_list:
-                self.export_csv("test_csv_export_copy")
+                self.export_csv("test_csv_export")
             self.driver.find_element(By.CLASS_NAME, PREVIOUS_DATE_ARROW_CLASS).click()
 
 
