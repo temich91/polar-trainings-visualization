@@ -43,14 +43,32 @@ NEW_TELEMETRY_COLS = {"Time": "time",
                       "Cadence": "cadence",
                       "Altitude (m)": "altitude"}
 
+SUMMARY_FILL_VALUES = {"start_datetime": "00:00:00",
+                       "duration": 0,
+                       "distance": 0.0,
+                       "hr_avg": 0,
+                       "pace_avg": "00:00",
+                       "pace_max": "00:00",
+                       "ascent": 0,
+                       "descent": 0,
+                       "calories": 0,
+                       "cadence_avg": 0}
+
+TELEMETRY_FILL_VALUES = {"time": 0,
+                         "hr": 0,
+                         "pace": "00:00",
+                         "cadence": 0,
+                         "altitude": 0}
+
 def timestamp_to_seconds(timestamp):
-    try:
-        if timestamp.count(":") == 1:
-            timestamp = f"00:{timestamp}"
-        hh, mm, ss = map(int, timestamp.split(":"))
-        return hh * 3600 + mm * 60 + ss
-    except Exception as e:
-        print(timestamp)
+    if timestamp.count(":") == 1:
+        timestamp = f"00:{timestamp}"
+    hh, mm, ss = map(int, timestamp.split(":"))
+    return hh * 3600 + mm * 60 + ss
+
+def date_to_isoformat(date):
+    dd, mm, yyyy = date.split(".")
+    return f"{yyyy}-{mm}-{dd}"
 
 def split_csv(user_id, file_path):
     session_id = file_path.split("/")[-1][:-4]
@@ -61,9 +79,10 @@ def split_csv(user_id, file_path):
 def transform_summary(user_id, session_id, file_path):
     summ_df = pd.read_csv(file_path, nrows=1, usecols=SUMMARY_COLS)
     summ_df.rename(columns=NEW_SUMMARY_COLS, inplace=True)
+    summ_df = summ_df.fillna(value=SUMMARY_FILL_VALUES)
     summ_df.insert(loc=0, column="user_id", value=user_id)
     summ_df.insert(loc=1, column="session_id", value=session_id)
-    summ_df["start_datetime"] = summ_df["Date"].str.replace(".", "-") + "T" + summ_df["start_datetime"]
+    summ_df["start_datetime"] = summ_df["Date"].apply(lambda date: date_to_isoformat(date)) + "T" + summ_df["start_datetime"]
     summ_df["duration"] = summ_df["duration"].apply(lambda time: timestamp_to_seconds(time))
     summ_df["pace_avg"] = summ_df["pace_avg"].apply(lambda time: timestamp_to_seconds(time))
     summ_df["pace_max"] = summ_df["pace_max"].apply(lambda time: timestamp_to_seconds(time))
@@ -73,6 +92,7 @@ def transform_summary(user_id, session_id, file_path):
 def transform_telemetry(user_id, session_id, file_path):
     tel_df = pd.read_csv(file_path, skiprows=2, usecols=TELEMETRY_COLS)
     tel_df.rename(columns=NEW_TELEMETRY_COLS, inplace=True)
+    tel_df = tel_df.fillna(value=TELEMETRY_FILL_VALUES)
     tel_df.insert(loc=0, column="user_id", value=user_id)
     tel_df.insert(loc=1, column="session_id", value=session_id)
     tel_df["time"] = tel_df["time"].apply(lambda time: timestamp_to_seconds(time))
@@ -117,5 +137,5 @@ class DatabaseConnector:
 
 if __name__ == "__main__":
     connector = DatabaseConnector(DB_NAME)
-    connector.load_from_csv(1, "../test")
+    connector.load_from_csv(1)
     connector.close()
