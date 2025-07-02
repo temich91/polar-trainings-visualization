@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import os
 from sqlalchemy import create_engine, insert
 from sqlalchemy.orm import sessionmaker
@@ -80,19 +81,41 @@ def transform_telemetry(user_id, session_id, file_path):
 
 class DatabaseConnector:
     def __init__(self, db_name):
-        db_url = f"sqlite:///{db_name}"
-        self.engine = create_engine(db_url)
+        self.db_url = f"sqlite:///{db_name}"
+        self.engine = None
+        self.session_factory = None
+        self._initialize()
+
+    def _initialize(self):
+        self.engine = create_engine(self.db_url)
+        self.session_factory = sessionmaker(bind=self.engine)
         Base.metadata.create_all(bind=self.engine)
-        Session = sessionmaker(bind=self.engine) # add session factory
-        self.session = Session()
+
+    @contextmanager
+    def session_scope(self):
+        session = self.session_factory()
+        try:
+            yield session
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    def close(self):
+        if self.engine:
+            self.engine.dispose()
 
     def load_from_csv(self, user_id, csv_dir=DEFAULT_CSV_DIR):
         for csv in os.listdir(csv_dir):
             summary_df, telemetry_df = split_csv(user_id, csv_dir + "/" + csv)
-            self.session.execute(insert(Summary), summary_df.to_dict(orient="records"))
-            self.session.execute(insert(Telemetry), telemetry_df.to_dict(orient="records"))
+            with self.session_scope() as session:
+                session.execute(insert(Summary), summary_df.to_dict(orient="records"))
+                session.execute(insert(Telemetry), telemetry_df.to_dict(orient="records"))
 
 
 if __name__ == "__main__":
     connector = DatabaseConnector(DB_NAME)
-    connector.load_from_csv("../test")
+    connector.load_from_csv(1, "../test")
+    connector.close()

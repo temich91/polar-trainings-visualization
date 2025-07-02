@@ -14,7 +14,7 @@ class Summary(Base):
     __tablename__ = "summary"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("accounts.id"))
-    training_id = Column(Integer)
+    session_id = Column(Integer)
     start_datetime = Column(Text)
     duration = Column(Integer)
     distance = Column(Float)
@@ -31,7 +31,7 @@ class Telemetry(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("accounts.id"))
     session_id = Column(Integer)
-    timestamp = Column(Integer)
+    time = Column(Integer)
     hr = Column(Integer)
     pace = Column(Integer)
     cadence = Column(Integer)
