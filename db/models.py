@@ -1,8 +1,10 @@
 from sqlalchemy import Column, ForeignKey, Integer, String, Text, Float
 from sqlalchemy.orm import DeclarativeBase
 
+
 # SQLAlchemy base class for models
 class Base(DeclarativeBase): pass
+
 
 class Account(Base):
     """

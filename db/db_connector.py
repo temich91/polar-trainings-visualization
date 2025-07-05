@@ -4,61 +4,8 @@ from sqlalchemy import create_engine, insert
 from sqlalchemy.orm import sessionmaker
 import pandas as pd
 from models import Base, Account, Summary, Telemetry
+import constants as c
 
-DB_NAME = "trainings.db"
-DEFAULT_CSV_DIR = "../csv_export"
-
-SUMMARY_COLS = ["Date",
-                "Start time",
-                "Duration",
-                "Total distance (km)",
-                "Average heart rate (bpm)",
-                "Average pace (min/km)",
-                "Max pace (min/km)",
-                "Ascent (m)",
-                "Descent (m)",
-                "Calories",
-                "Average cadence (rpm)"]
-
-TELEMETRY_COLS = ["Time",
-                  "HR (bpm)",
-                  "Pace (min/km)",
-                  "Cadence",
-                  "Altitude (m)"]
-
-NEW_SUMMARY_COLS = {"Start time": "start_datetime",
-                    "Duration": "duration",
-                    "Total distance (km)": "distance",
-                    "Average heart rate (bpm)": "hr_avg",
-                    "Average pace (min/km)": "pace_avg",
-                    "Max pace (min/km)": "pace_max",
-                    "Ascent (m)": "ascent",
-                    "Descent (m)": "descent",
-                    "Calories": "calories",
-                    "Average cadence (rpm)": "cadence_avg"}
-
-NEW_TELEMETRY_COLS = {"Time": "time",
-                      "HR (bpm)": "hr",
-                      "Pace (min/km)": "pace",
-                      "Cadence": "cadence",
-                      "Altitude (m)": "altitude"}
-
-SUMMARY_FILL_VALUES = {"start_datetime": "00:00:00",
-                       "duration": 0,
-                       "distance": 0.0,
-                       "hr_avg": 0,
-                       "pace_avg": "00:00",
-                       "pace_max": "00:00",
-                       "ascent": 0,
-                       "descent": 0,
-                       "calories": 0,
-                       "cadence_avg": 0}
-
-TELEMETRY_FILL_VALUES = {"time": 0,
-                         "hr": 0,
-                         "pace": "00:00",
-                         "cadence": 0,
-                         "altitude": 0}
 
 def timestamp_to_seconds(timestamp):
     if timestamp.count(":") == 1:
@@ -77,9 +24,9 @@ def split_csv(user_id, file_path):
     return summary, telemetry
 
 def transform_summary(user_id, session_id, file_path):
-    summ_df = pd.read_csv(file_path, nrows=1, usecols=SUMMARY_COLS)
-    summ_df.rename(columns=NEW_SUMMARY_COLS, inplace=True)
-    summ_df = summ_df.fillna(value=SUMMARY_FILL_VALUES)
+    summ_df = pd.read_csv(file_path, nrows=1, usecols=c.SUMMARY_COLS)
+    summ_df.rename(columns=c.NEW_SUMMARY_COLS, inplace=True)
+    summ_df = summ_df.fillna(value=c.SUMMARY_FILL_VALUES)
     summ_df.insert(loc=0, column="user_id", value=user_id)
     summ_df.insert(loc=1, column="session_id", value=session_id)
     summ_df["start_datetime"] = summ_df["Date"].apply(lambda date: date_to_isoformat(date)) + "T" + summ_df["start_datetime"]
@@ -90,9 +37,9 @@ def transform_summary(user_id, session_id, file_path):
     return summ_df
 
 def transform_telemetry(user_id, session_id, file_path):
-    tel_df = pd.read_csv(file_path, skiprows=2, usecols=TELEMETRY_COLS)
-    tel_df.rename(columns=NEW_TELEMETRY_COLS, inplace=True)
-    tel_df = tel_df.fillna(value=TELEMETRY_FILL_VALUES)
+    tel_df = pd.read_csv(file_path, skiprows=2, usecols=c.TELEMETRY_COLS)
+    tel_df.rename(columns=c.NEW_TELEMETRY_COLS, inplace=True)
+    tel_df = tel_df.fillna(value=c.TELEMETRY_FILL_VALUES)
     tel_df.insert(loc=0, column="user_id", value=user_id)
     tel_df.insert(loc=1, column="session_id", value=session_id)
     tel_df["time"] = tel_df["time"].apply(lambda time: timestamp_to_seconds(time))
@@ -127,7 +74,7 @@ class DatabaseConnector:
         if self.engine:
             self.engine.dispose()
 
-    def load_from_csv(self, user_id, csv_dir=DEFAULT_CSV_DIR):
+    def load_from_csv(self, user_id, csv_dir=c.DEFAULT_CSV_DIR):
         for csv in os.listdir(csv_dir):
             summary_df, telemetry_df = split_csv(user_id, csv_dir + "/" + csv)
             with self.session_scope() as session:
@@ -136,6 +83,6 @@ class DatabaseConnector:
 
 
 if __name__ == "__main__":
-    connector = DatabaseConnector(DB_NAME)
+    connector = DatabaseConnector(c.DB_NAME)
     connector.load_from_csv(1)
     connector.close()
