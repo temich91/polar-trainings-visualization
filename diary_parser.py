@@ -15,6 +15,7 @@ import os
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import constants as c
+from constants import COOKIES_DIR
 
 
 def get_xpath_by_text(text: str | int | float, prefix="/") -> str:
@@ -66,6 +67,9 @@ class Scrapper:
     def login(self, username: str, password: str) -> None:
         """Log in to Polar Flow.
 
+        Tries to upload cookies to avoid logging in again.
+        If there is no ``cookies.json`` in the data directory or the cookies are outdated, a new json will be saved.
+
         Args:
             username: Polar Flow login.
             password: Polar Flow password.
@@ -73,11 +77,13 @@ class Scrapper:
         Returns:
             None.
         """
-        # if not self.check_cookies():
-        if "cookies.json" not in os.listdir("."):
+        if not self.check_cookies():
             self.driver.get(f"{c.FLOW_URL}/login")
             print("Cookies...")
-            self.wait_visible_element((By.ID, c.COOKIE_DECLINE_BTN_CLASS))
+            # If the cookies json is not in the data directory
+            # unnecessary cookies decline menu will be transmitted to the website, so the cookies menu will appear.
+            if "cookies.json" not in os.listdir(c.COOKIES_DIR):
+                self.wait_visible_element((By.ID, c.COOKIE_DECLINE_BTN_CLASS))
             self.wait_visible_element((By.ID, "login"))
 
             print("Signing in...")
@@ -91,10 +97,9 @@ class Scrapper:
             else:
                 print("Erorr: wrong email/password")
                 return
-            with open("cookies.json", "w") as cookies_file:
+            with open(f"{c.COOKIES_DIR}/cookies.json", "w") as cookies_file:
                 json.dump(self.driver.get_cookies(), cookies_file)
 
-        self.driver.get(c.FLOW_URL)
         self.load_cookies()
 
     def check_cookies(self) -> bool:
@@ -106,7 +111,7 @@ class Scrapper:
         Returns:
             Bool of check result.
         """
-        if "cookies.json" not in os.listdir("."):
+        if "cookies.json" not in os.listdir(c.COOKIES_DIR):
             return False
         self.driver.get(c.FLOW_URL)
         self.load_cookies()
@@ -125,7 +130,7 @@ class Scrapper:
         Returns:
             None.
         """
-        for cookie in json.load(open("cookies.json", "r")):
+        for cookie in json.load(open(f"{c.COOKIES_DIR}/cookies.json", "r")):
             self.driver.add_cookie(cookie)
 
     def check_authentication(self) -> bool:
@@ -275,4 +280,4 @@ if __name__ == "__main__":
 
     scraper = Scrapper(c.DRIVER_FILENAME)
     scraper.login(username, password)
-    scraper.get_all_trainings()
+    # scraper.get_all_trainings()
