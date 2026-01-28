@@ -82,8 +82,9 @@ class Scrapper:
             print("Cookies...")
             # If the cookies json is not in the data directory
             # unnecessary cookies decline menu will be transmitted to the website, so the cookies menu will appear.
-            if "cookies.json" not in os.listdir(c.COOKIES_DIR):
-                self.wait_visible_element((By.ID, c.COOKIE_DECLINE_BTN_CLASS))
+
+            # if "cookies.json" not in os.listdir(c.COOKIES_DIR):
+            #     self.wait_visible_element((By.ID, c.COOKIE_DECLINE_BTN_CLASS))
             self.wait_visible_element((By.ID, "login"))
 
             print("Signing in...")
@@ -118,7 +119,7 @@ class Scrapper:
         self.driver.get(f"{c.FLOW_URL}/diary/training-list")
         time.sleep(2.5)
         if "login" in self.driver.current_url:
-            os.remove("./cookies.json")
+            os.remove(os.path.join(c.COOKIES_DIR, "cookies.json"))
             return False
         return True
 
