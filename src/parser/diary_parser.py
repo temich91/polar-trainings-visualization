@@ -14,8 +14,7 @@ import time
 import os
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-import constants as c
-from constants import COOKIES_DIR
+from src import constants as c
 
 
 def get_xpath_by_text(text: str | int | float, prefix="/") -> str:
@@ -281,4 +280,4 @@ if __name__ == "__main__":
 
     scraper = Scrapper(c.DRIVER_FILENAME)
     scraper.login(username, password)
-    # scraper.get_all_trainings()
+    scraper.get_all_trainings()

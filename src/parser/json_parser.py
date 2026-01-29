@@ -56,7 +56,7 @@ def collect_trainings_data(year):
     :return: list
     """
     data = []
-    for training_json in os.listdir("data"):
+    for training_json in os.listdir("../../data"):
         summary = get_training_summary_from_json(training_json, year)
         if summary:
             data.append(summary)

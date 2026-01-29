@@ -3,9 +3,9 @@ import os
 from sqlalchemy import create_engine, insert
 from sqlalchemy.orm import sessionmaker
 import pandas as pd
-from models import Base, Account, Summary, Telemetry
-import constants as c
-
+from models import Base, Summary, Telemetry
+from src import constants as c
+from tqdm import tqdm
 
 def timestamp_to_seconds(timestamp):
     if timestamp.count(":") == 1:
@@ -75,7 +75,7 @@ class DatabaseConnector:
             self.engine.dispose()
 
     def load_from_csv(self, user_id, csv_dir=c.DEFAULT_CSV_DIR):
-        for csv in os.listdir(csv_dir):
+        for csv in tqdm(os.listdir(csv_dir), desc="csv processed"):
             summary_df, telemetry_df = split_csv(user_id, csv_dir + "/" + csv)
             with self.session_scope() as session:
                 session.execute(insert(Summary), summary_df.to_dict(orient="records"))
@@ -83,6 +83,7 @@ class DatabaseConnector:
 
 
 if __name__ == "__main__":
-    connector = DatabaseConnector(c.DB_NAME)
+    connector = DatabaseConnector("test.db")
+    # connector = DatabaseConnector(c.DB_NAME)
     connector.load_from_csv(1)
     connector.close()

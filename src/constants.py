@@ -1,7 +1,7 @@
 # Polar Flow scraper:
 FLOW_URL = "https://flow.polar.com"
-DRIVER_FILENAME = "msedgedriver.exe"
-COOKIES_DIR = "./data"
+DRIVER_FILENAME = "../msedgedriver.exe"
+COOKIES_DIR = "../data"
 ELEMENT_VISIBILITY_TIMEOUT = 3 # seconds
 COOKIE_DECLINE_BTN_CLASS = "CybotCookiebotDialogBodyButtonDecline"
 PERIOD_SWITCHER_CLASS = "select-component__value-container.select-component__value-container--has-value.css-1hwfws3"
