@@ -14,8 +14,10 @@ import time
 import os
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-from src import constants as c
+from src.utils import constants as c
+from src.utils.paths import *
 
+COOKIES_PATH = DATA_DIR / "cookies.json"
 
 def get_xpath_by_text(text: str | int | float, prefix="/") -> str:
     """Return the XPath to element containing specific text.
@@ -97,7 +99,7 @@ class Scrapper:
             else:
                 print("Erorr: wrong email/password")
                 return
-            with open(f"{c.COOKIES_DIR}/cookies.json", "w") as cookies_file:
+            with open(COOKIES_PATH, "w") as cookies_file:
                 json.dump(self.driver.get_cookies(), cookies_file)
 
         self.load_cookies()
@@ -111,14 +113,14 @@ class Scrapper:
         Returns:
             Bool of check result.
         """
-        if "cookies.json" not in os.listdir(c.COOKIES_DIR):
+        if "cookies.json" not in os.listdir(DATA_DIR):
             return False
         self.driver.get(c.FLOW_URL)
         self.load_cookies()
         self.driver.get(f"{c.FLOW_URL}/diary/training-list")
         time.sleep(2.5)
         if "login" in self.driver.current_url:
-            os.remove(os.path.join(c.COOKIES_DIR, "cookies.json"))
+            os.remove(COOKIES_PATH)
             return False
         return True
 
@@ -130,7 +132,7 @@ class Scrapper:
         Returns:
             None.
         """
-        for cookie in json.load(open(f"{c.COOKIES_DIR}/cookies.json", "r")):
+        for cookie in json.load(open(COOKIES_PATH, "r")):
             self.driver.add_cookie(cookie)
 
     def check_authentication(self) -> bool:
@@ -277,7 +279,8 @@ class Scrapper:
 if __name__ == "__main__":
     username = polar_config.username
     password = polar_config.password
+    webdriver_path = BASE_DIR / "msedgedriver.exe"
 
-    scraper = Scrapper(c.DRIVER_FILENAME)
+    scraper = Scrapper(webdriver_path)
     scraper.login(username, password)
     scraper.get_all_trainings()

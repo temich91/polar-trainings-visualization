@@ -1,7 +1,5 @@
 # Polar Flow scraper:
 FLOW_URL = "https://flow.polar.com"
-DRIVER_FILENAME = "../msedgedriver.exe"
-COOKIES_DIR = "../data"
 ELEMENT_VISIBILITY_TIMEOUT = 3 # seconds
 COOKIE_DECLINE_BTN_CLASS = "CybotCookiebotDialogBodyButtonDecline"
 PERIOD_SWITCHER_CLASS = "select-component__value-container.select-component__value-container--has-value.css-1hwfws3"
@@ -18,7 +16,6 @@ MONTHS = {1: "янв.", 2: "фев.", 3: "март", 4: "апр.", 5: "май", 
 
 # CSV parser and database connector:
 DB_NAME = "trainings.db"
-DEFAULT_CSV_DIR = "../csv_export"
 
 SUMMARY_COLS = ["Date",
                 "Start time",
