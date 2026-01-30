@@ -1,12 +1,12 @@
-from contextlib import contextmanager
 import os
-from sqlalchemy import create_engine, insert
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import insert
 import pandas as pd
-from models import Base, Summary, Telemetry
+from models import Summary, Telemetry
 from src.utils import constants as c
 from tqdm import tqdm
 from src.utils.paths import *
+from base_db_connector import BaseDBConnector
+
 
 def timestamp_to_seconds(timestamp):
     if timestamp.count(":") == 1:
@@ -19,7 +19,7 @@ def date_to_isoformat(date):
     return f"{yyyy}-{mm}-{dd}"
 
 def split_csv(user_id, file_path):
-    session_id = file_path.split("/")[-1][:-4]
+    session_id = os.fspath(file_path).split("\\")[-1][:-4]
     summary = transform_summary(user_id, session_id, file_path)
     telemetry = transform_telemetry(user_id, session_id, file_path)
     return summary, telemetry
@@ -47,44 +47,19 @@ def transform_telemetry(user_id, session_id, file_path):
     tel_df["pace"] = tel_df["pace"].apply(lambda time: timestamp_to_seconds(time))
     return tel_df
 
-class DatabaseConnector:
-    def __init__(self, db_name):
-        self.db_url = f"sqlite:///{db_name}"
-        self.engine = None
-        self.session_factory = None
-        self._initialize()
+class DBImporter(BaseDBConnector):
+    def __init__(self, db_path):
+        super().__init__(db_path)
 
-    def _initialize(self):
-        self.engine = create_engine(self.db_url)
-        self.session_factory = sessionmaker(bind=self.engine)
-        Base.metadata.create_all(bind=self.engine)
-
-    @contextmanager
-    def session_scope(self):
-        session = self.session_factory()
-        try:
-            yield session
-            session.commit()
-        except Exception:
-            session.rollback()
-            raise
-        finally:
-            session.close()
-
-    def close(self):
-        if self.engine:
-            self.engine.dispose()
-
-    def load_from_csv(self, user_id, csv_dir=BASE_DIR / "csv_export"):
+    def import_csv(self, user_id, csv_dir=BASE_DIR / "csv_export"):
         for csv in tqdm(os.listdir(csv_dir), desc="csv processed"):
-            summary_df, telemetry_df = split_csv(user_id, csv_dir + "/" + csv)
+            summary_df, telemetry_df = split_csv(user_id, csv_dir / csv)
             with self.session_scope() as session:
                 session.execute(insert(Summary), summary_df.to_dict(orient="records"))
                 session.execute(insert(Telemetry), telemetry_df.to_dict(orient="records"))
 
 
 if __name__ == "__main__":
-    connector = DatabaseConnector("test.db")
-    # connector = DatabaseConnector(c.DB_NAME)
-    connector.load_from_csv(1)
+    connector = DBImporter("test.db")
+    connector.import_csv(1)
     connector.close()
